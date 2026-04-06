@@ -1,0 +1,42 @@
+name: semantic-patch-triage
+version: "1.0.0"
+description: >
+  RL environment where agents triage semantic memory patches under token
+  budget constraints. Inspired by the DSPM framework for LLM context compression.
+author: Dhruv Dubey
+tags: [nlp, memory-management, context-compression, llm]
+tasks:
+  - id: easy
+    description: 6 patches, 150-token budget, 3 critical patches
+    difficulty: easy
+    max_reward: 1.0
+  - id: medium
+    description: 10 patches, 100-token budget, 5 critical patches
+    difficulty: medium
+    max_reward: 1.0
+  - id: hard
+    description: 15 patches, 80-token budget, 8 critical patches
+    difficulty: hard
+    max_reward: 1.0
+action_space:
+  type: object
+  properties:
+    keep_patch_ids:
+      type: array
+      items: {type: string}
+observation_space:
+  type: object
+  properties:
+    patches: {type: array}
+    token_budget: {type: integer}
+    total_tokens: {type: integer}
+    turn: {type: integer}
+    task_id: {type: string}
+reward:
+  formula: "(CRR * 0.6) + (TRR * 0.4) - 0.3_if_over_budget"
+  range: [0.0, 1.0]
+endpoints:
+  reset: POST /reset?task_id={task_id}
+  step:  POST /step
+  state: GET  /state
+  health: GET /health
