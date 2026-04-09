@@ -1,25 +1,10 @@
 import os
-import json
 import time
 import requests
 
 ENV_URL = os.getenv("ENV_URL", "http://localhost:7860")
 TASKS = ["easy", "medium", "hard"]
 SUCCESS_THRESHOLD = 0.5
-
-
-def log_start(task, env, model):
-    print(json.dumps({"event": "[START]", "task": task, "env": env, "model": model}), flush=True)
-
-
-def log_step(step, action, reward, done, error=None):
-    print(json.dumps({"event": "[STEP]", "step": step, "action": str(action)[:200],
-                      "reward": reward, "done": done, "error": error}), flush=True)
-
-
-def log_end(success, steps, score, rewards):
-    print(json.dumps({"event": "[END]", "success": success, "steps": steps,
-                      "score": score, "rewards": rewards}), flush=True)
 
 
 def optimal_knapsack(patches, budget):
@@ -46,13 +31,14 @@ def optimal_knapsack(patches, budget):
             best_score = score
             best_ids = [p["id"] for p in kept]
 
-    print(f"[DEBUG] Knapsack best score: {best_score:.4f}, keeping: {best_ids}", flush=True)
     return best_ids
 
 
 def run_task(task_id):
-    log_start(task=task_id, env="semantic-patch-triage", model="knapsack")
-    rewards, steps_taken, score, success = [], 0, 0.0, False
+    print(f"[START] task={task_id} env=semantic-patch-triage model=knapsack", flush=True)
+    score = 0.0
+    steps = 0
+    success = False
 
     try:
         resp = requests.post(f"{ENV_URL}/reset", params={"task_id": task_id}, timeout=30)
@@ -66,16 +52,16 @@ def run_task(task_id):
         result = result.json()
 
         reward = result.get("reward", 0.0)
-        rewards.append(reward)
-        steps_taken = 1
-        log_step(step=1, action=keep_ids, reward=reward, done=result.get("done", True), error=None)
+        steps = 1
         score = round(min(max(reward, 0.0), 1.0), 4)
         success = score >= SUCCESS_THRESHOLD
 
-    except Exception as e:
-        log_step(step=1, action=[], reward=0.0, done=True, error=str(e))
+        print(f"[STEP] step=1 action={keep_ids} reward={reward} done=true", flush=True)
 
-    log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+    except Exception as e:
+        print(f"[STEP] step=1 reward=0.0 done=true error={str(e)}", flush=True)
+
+    print(f"[END] task={task_id} score={score} steps={steps} success={success}", flush=True)
     return score
 
 
@@ -86,10 +72,10 @@ def main():
         scores[t] = run_task(t)
         time.sleep(1)
 
-    print("\nFINAL SCORES:")
+    print("\nFINAL SCORES:", flush=True)
     for t, s in scores.items():
-        print(f"  {t}: {s:.4f}")
-    print(f"  mean: {sum(scores.values())/len(scores):.4f}")
+        print(f"  {t}: {s:.4f}", flush=True)
+    print(f"  mean: {sum(scores.values())/len(scores):.4f}", flush=True)
 
 
 if __name__ == "__main__":
